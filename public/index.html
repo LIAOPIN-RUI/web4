@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>銅價管理系統</title>
+</head>
+<body>
+<h1>銅價管理系統</h1>
+
+<h2>🔍 查詢所有銅價資料</h2>
+<button onclick="fetchAll()">查詢全部</button>
+<table border="1" id="dataTable">
+  <thead>
+  <tr>
+    <th>年份</th><th>平均價</th><th>最高價</th><th>最低價</th><th>年幅度 (%)</th>
+  </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<h2>🔎 查詢特定年份</h2>
+<input type="number" id="searchYear" placeholder="輸入年份">
+<button onclick="searchYear()">查詢</button>
+<div id="searchResult"></div>
+
+<h2>✏️ 新增資料</h2>
+<form id="insertForm">
+  <input type="number" name="year" placeholder="年份" required>
+  <input type="number" step="0.01" name="average_price" placeholder="平均價" required>
+  <input type="number" step="0.01" name="highest_price" placeholder="最高價" required>
+  <input type="number" step="0.01" name="lowest_price" placeholder="最低價" required>
+  <input type="number" step="0.01" name="annual_range" placeholder="年幅度(%)" required>
+  <button type="submit">新增</button>
+</form>
+
+<script>
+  // 查詢全部
+  async function fetchAll() {
+    const res = await fetch('/api/price');
+    const data = await res.json();
+    const tbody = document.querySelector('#dataTable tbody');
+    tbody.innerHTML = '';
+    data.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${row.year}</td>
+                        <td>${row.average_price.toFixed(2)}</td>
+                        <td>${row.highest_price.toFixed(2)}</td>
+                        <td>${row.lowest_price.toFixed(2)}</td>
+                        <td>${row.annual_range.toFixed(2)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // 查詢單筆年份
+  async function searchYear() {
+    const year = document.getElementById('searchYear').value;
+    const res = await fetch(`/api?year=${year}`);
+    const result = await res.json();
+    const div = document.getElementById('searchResult');
+    if (result.error) {
+      div.textContent = result.error;
+    } else {
+      div.innerHTML = `查詢結果：${result.year} 年，平均 ${result.average_price}，高 ${result.highest_price}，低 ${result.lowest_price}，幅度 ${result.annual_range}%`;
+    }
+  }
+
+  // 新增資料
+  document.getElementById('insertForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const form = new FormData(this);
+    const data = Object.fromEntries(form.entries());
+    const res = await fetch('/api/insert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const text = await res.text();
+    alert(text);
+    this.reset();
+    fetchAll(); // 重新載入
+  });
+
+  // 載入時顯示全部資料
+  window.onload = fetchAll;
+</script>
+</body>
+</html>
