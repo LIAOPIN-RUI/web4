@@ -2,69 +2,220 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>銅價管理系統</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f7fa;
+      color: #333;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.5em;
+      margin-bottom: 30px;
+      color: #2c3e50;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+
+    .card {
+      background-color: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.5em;
+      color: #34495e;
+      margin-bottom: 15px;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+
+    input[type="number"] {
+      width: 100%;
+    }
+
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      background-color: white;
+    }
+
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+
+    th {
+      background-color: #3498db;
+      color: white;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    tr:hover {
+      background-color: #eef6fc;
+    }
+
+    #pagination {
+      text-align: center;
+      margin-top: 15px;
+    }
+
+    #pagination button {
+      margin: 2px;
+      padding: 8px 12px;
+      border-radius: 5px;
+    }
+
+    @media (max-width: 600px) {
+      input, button { width: 100%; }
+      table { font-size: 0.9em; }
+    }
+  </style>
 </head>
 <body>
-<h1>銅價管理系統</h1>
+<div class="container">
+  <h1>銅價管理系統</h1>
 
-<h2>🔍 查詢所有銅價資料</h2>
-<button onclick="fetchAll()">查詢全部</button>
-<table border="1" id="dataTable">
-  <thead>
-  <tr>
-    <th>年份</th><th>平均價</th><th>最高價</th><th>最低價</th><th>年幅度 (%)</th>
-  </tr>
-  </thead>
-  <tbody></tbody>
-</table>
+  <div class="card">
+    <h2>🔍 查詢所有資料（每頁 10 筆）</h2>
+    <button onclick="fetchAll()">查詢全部</button>
+    <table id="dataTable">
+      <thead>
+      <tr>
+        <th>年份</th>
+        <th>平均價</th>
+        <th>最高價</th>
+        <th>最低價</th>
+        <th>年幅度 (%)</th>
+      </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div id="pagination"></div>
+  </div>
 
-<h2>🔎 查詢特定年份</h2>
-<input type="number" id="searchYear" placeholder="輸入年份">
-<button onclick="searchYear()">查詢</button>
-<div id="searchResult"></div>
+  <div class="card">
+    <h2>🔎 查詢特定年份</h2>
+    <input type="number" id="searchYear" placeholder="輸入年份">
+    <button onclick="searchYear()">查詢</button>
+    <div id="searchResult"></div>
+  </div>
 
-<h2>✏️ 新增資料</h2>
-<form id="insertForm">
-  <input type="number" name="year" placeholder="年份" required>
-  <input type="number" step="0.01" name="average_price" placeholder="平均價" required>
-  <input type="number" step="0.01" name="highest_price" placeholder="最高價" required>
-  <input type="number" step="0.01" name="lowest_price" placeholder="最低價" required>
-  <input type="number" step="0.01" name="annual_range" placeholder="年幅度(%)" required>
-  <button type="submit">新增</button>
-</form>
+  <div class="card">
+    <h2>✏️ 新增資料</h2>
+    <form id="insertForm">
+      <input type="number" name="year" placeholder="年份" required>
+      <input type="number" step="0.01" name="average_price" placeholder="平均價" required>
+      <input type="number" step="0.01" name="highest_price" placeholder="最高價" required>
+      <input type="number" step="0.01" name="lowest_price" placeholder="最低價" required>
+      <input type="number" step="0.01" name="annual_range" placeholder="年幅度 (%)" required>
+      <button type="submit">新增資料</button>
+    </form>
+  </div>
+</div>
 
 <script>
-  // 查詢全部
+  let allData = [];
+  let currentPage = 1;
+  const rowsPerPage = 10;
+
   async function fetchAll() {
     const res = await fetch('/api/price');
-    const data = await res.json();
+    allData = await res.json();
+    currentPage = 1;
+    renderTablePage(currentPage);
+    renderPagination();
+  }
+
+  function renderTablePage(page) {
     const tbody = document.querySelector('#dataTable tbody');
     tbody.innerHTML = '';
-    data.forEach(row => {
+    const start = (page - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    const pageData = allData.slice(start, end);
+
+    pageData.forEach(row => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${row.year}</td>
-                        <td>${row.average_price.toFixed(2)}</td>
-                        <td>${row.highest_price.toFixed(2)}</td>
-                        <td>${row.lowest_price.toFixed(2)}</td>
-                        <td>${row.annual_range.toFixed(2)}</td>`;
+      tr.innerHTML = `
+          <td>${row.year}</td>
+          <td>${row.average_price.toFixed(2)}</td>
+          <td>${row.highest_price.toFixed(2)}</td>
+          <td>${row.lowest_price.toFixed(2)}</td>
+          <td style="color:${row.annual_range >= 0 ? 'green' : 'red'}">${row.annual_range.toFixed(2)}</td>
+        `;
       tbody.appendChild(tr);
     });
   }
 
-  // 查詢單筆年份
-  async function searchYear() {
-    const year = document.getElementById('searchYear').value;
-    const res = await fetch(`/api?year=${year}`);
-    const result = await res.json();
-    const div = document.getElementById('searchResult');
-    if (result.error) {
-      div.textContent = result.error;
-    } else {
-      div.innerHTML = `查詢結果：${result.year} 年，平均 ${result.average_price}，高 ${result.highest_price}，低 ${result.lowest_price}，幅度 ${result.annual_range}%`;
+  function renderPagination() {
+    const totalPages = Math.ceil(allData.length / rowsPerPage);
+    const container = document.getElementById('pagination');
+    container.innerHTML = '';
+
+    for (let i = 1; i <= totalPages; i++) {
+      const btn = document.createElement('button');
+      btn.textContent = i;
+      btn.onclick = () => {
+        currentPage = i;
+        renderTablePage(currentPage);
+        renderPagination();
+      };
+      if (i === currentPage) btn.style.backgroundColor = '#2980b9';
+      container.appendChild(btn);
     }
   }
 
-  // 新增資料
+  async function searchYear() {
+    const year = document.getElementById('searchYear').value;
+    const res = await fetch(`/api?year=${year}`);
+    const data = await res.json();
+    const div = document.getElementById('searchResult');
+    if (data.error) {
+      div.innerHTML = `<p style="color:red;">${data.error}</p>`;
+    } else {
+      div.innerHTML = `
+          <p><strong>${data.year} 年</strong>：平均 ${data.average_price}, 高 ${data.highest_price}, 低 ${data.lowest_price}, 幅度 <span style="color:${data.annual_range >= 0 ? 'green' : 'red'}">${data.annual_range}%</span></p>
+        `;
+    }
+  }
+
   document.getElementById('insertForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     const form = new FormData(this);
@@ -77,10 +228,9 @@
     const text = await res.text();
     alert(text);
     this.reset();
-    fetchAll(); // 重新載入
+    fetchAll();
   });
 
-  // 載入時顯示全部資料
   window.onload = fetchAll;
 </script>
 </body>
